@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>AG Electricals & Services – Billing</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#f97316">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="AG Billing">
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        body { font-family: Arial, sans-serif; background: #0a0a0a; }
+        input, select, textarea, button { font-size: 16px !important; }
+        .ag-gradient { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); }
+        .orange-text { color: #f97316; }
+        .blue-text { color: #3b82f6; }
+        .card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
+        .glow-orange { box-shadow: 0 0 20px rgba(249,115,22,0.3); }
+        .glow-blue { box-shadow: 0 0 20px rgba(59,130,246,0.3); }
+        .btn-orange { background: linear-gradient(135deg, #ea580c, #f97316); }
+        .btn-orange:hover { background: linear-gradient(135deg, #c2410c, #ea580c); }
+        .btn-blue { background: linear-gradient(135deg, #1d4ed8, #3b82f6); }
+        .btn-blue:hover { background: linear-gradient(135deg, #1e40af, #1d4ed8); }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1a1a2e; }
+        ::-webkit-scrollbar-thumb { background: #f97316; border-radius: 3px; }
+        input, select, textarea { background: rgba(255,255,255,0.07) !important; color: #fff !important; border: 1px solid rgba(255,255,255,0.15) !important; }
+        input::placeholder, textarea::placeholder { color: rgba(255,255,255,0.35) !important; }
+        option { background: #1a1a2e; color: #fff; }
+    </style>
+</head>
+<body class="ag-gradient min-h-screen">
+<div id="root"></div>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(() => console.log('SW registered'))
+        .catch(e => console.log('SW error', e));
+    });
+  }
+</script>
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const LOGO_URL = "https://i.ibb.co/placeholder/ag-logo.png"; // placeholder – logo drawn via SVG below
+
+// ── Inline SVG logo (AG Electricals brand colors) ──────────────────────────
+const AGLogo = ({ size = 60 }) => (
+  <svg width={size} height={size} viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <radialGradient id="gearGrad" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stopColor="#888"/>
+        <stop offset="100%" stopColor="#444"/>
+      </radialGradient>
+      <linearGradient id="aGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#fbbf24"/>
+        <stop offset="100%" stopColor="#f97316"/>
+      </linearGradient>
+      <linearGradient id="gGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#60a5fa"/>
+        <stop offset="100%" stopColor="#1d4ed8"/>
+      </linearGradient>
+      <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#60a5fa"/>
+        <stop offset="100%" stopColor="#1e40af"/>
+      </linearGradient>
+    </defs>
+    {/* Gear */}
+    <circle cx="52" cy="60" r="36" fill="url(#gearGrad)" opacity="0.85"/>
+    <circle cx="52" cy="60" r="26" fill="#111"/>
+    {/* Oval ring */}
+    <ellipse cx="68" cy="60" rx="40" ry="28" fill="none" stroke="url(#ringGrad)" strokeWidth="5"/>
+    {/* A letter */}
+    <text x="38" y="76" fontFamily="Arial Black" fontWeight="900" fontSize="36" fill="url(#aGrad)">A</text>
+    {/* Lightning bolt on A */}
+    <polygon points="55,52 51,63 55,61 51,73 58,59 54,61" fill="#fff" opacity="0.9"/>
+    {/* G letter */}
+    <text x="62" y="75" fontFamily="Arial Black" fontWeight="900" fontSize="32" fill="url(#gGrad)">G</text>
+    {/* Spark */}
+    <circle cx="98" cy="32" r="4" fill="#fbbf24" opacity="0.9"/>
+    <line x1="98" y1="25" x2="98" y2="20" stroke="#fbbf24" strokeWidth="1.5"/>
+    <line x1="103" y1="28" x2="107" y2="24" stroke="#fbbf24" strokeWidth="1.5"/>
+    <line x1="93" y1="28" x2="89" y2="24" stroke="#fbbf24" strokeWidth="1.5"/>
+  </svg>
+);
+
+const Trash2 = () => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>;
+const X = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+const GearIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
+
+const COMPANY = {
+  name: 'A G Electricals & Services',
+  phone: '7353062970',
+  address: '',
+  gst: '',
+  email: ''
+};
+
+const DEFAULT_SERVICES = [
+  { id:1, name:'Wiring',                  rate:500  },
+  { id:2, name:'Fan Installation',         rate:300  },
+  { id:3, name:'Light Fitting',            rate:200  },
+  { id:4, name:'Switch Board Repair',      rate:400  },
+  { id:5, name:'DB Board Installation',    rate:1500 },
+  { id:6, name:'MCB Replacement',          rate:350  },
+  { id:7, name:'Earthing',                 rate:800  },
+  { id:8, name:'AC Point Installation',    rate:600  },
+];
+
+const App = () => {
+  const [customers, setCustomers] = useState([]);
+  const [bills,     setBills]     = useState([]);
+  const [services,  setServices]  = useState(DEFAULT_SERVICES);
+  const [company,   setCompany]   = useState(COMPANY);
+  const [tax,       setTax]       = useState({ cgst:9, sgst:9, enabled:false });
+
+  const [tab,            setTab]            = useState('billing');
+  const [showCustForm,   setShowCustForm]   = useState(false);
+  const [showSvcForm,    setShowSvcForm]    = useState(false);
+  const [showSettings,   setShowSettings]   = useState(false);
+  const [search,         setSearch]         = useState('');
+  const [custForm,       setCustForm]       = useState({ name:'', phone:'', address:'', gst:'' });
+  const [svcForm,        setSvcForm]        = useState({ name:'', rate:'' });
+  const [billForm,       setBillForm]       = useState({ customerId:'', items:[], discount:0, notes:'' });
+  const [item,           setItem]           = useState({ serviceId:'', qty:1, desc:'' });
+
+  useEffect(() => {
+    try {
+      const d = JSON.parse(localStorage.getItem('ag_eb_data') || '{}');
+      if (d.customers) setCustomers(d.customers);
+      if (d.bills)     setBills(d.bills);
+      if (d.services)  setServices(d.services);
+      if (d.company)   setCompany(d.company);
+      if (d.tax)       setTax(d.tax);
+    } catch(e){}
+  }, []);
+
+  const save = (upd) => {
+    const cur = { customers, bills, services, company, tax, ...upd };
+    localStorage.setItem('ag_eb_data', JSON.stringify(cur));
+  };
+  const updC  = v => { setCustomers(v); save({ customers:v }); };
+  const updB  = v => { setBills(v);     save({ bills:v }); };
+  const updS  = v => { setServices(v);  save({ services:v }); };
+  const updCo = v => { setCompany(v);   save({ company:v }); };
+  const updT  = v => { setTax(v);       save({ tax:v }); };
+
+  const calcTotals = (items, disc) => {
+    const sub  = items.reduce((s,i) => s+i.total, 0);
+    const discA= (sub*disc)/100;
+    const after= sub - discA;
+    const cgstA= tax.enabled ? (after*tax.cgst)/100 : 0;
+    const sgstA= tax.enabled ? (after*tax.sgst)/100 : 0;
+    return { sub, disc:discA, cgstAmt:cgstA, sgstAmt:sgstA, total:after+cgstA+sgstA };
+  };
+  const t = calcTotals(billForm.items, billForm.discount);
+
+  const addCust = () => {
+    if (!custForm.name||!custForm.phone) return alert('Please fill Name and Phone!');
+    updC([...customers, { id:Date.now(), ...custForm }]);
+    setCustForm({ name:'', phone:'', address:'', gst:'' });
+    setShowCustForm(false);
+  };
+
+  const addSvc = () => {
+    if (!svcForm.name||!svcForm.rate) return alert('Fill Name and Rate!');
+    updS([...services, { id:Date.now(), name:svcForm.name, rate:parseFloat(svcForm.rate) }]);
+    setSvcForm({ name:'', rate:'' });
+    setShowSvcForm(false);
+  };
+
+  const addItem = () => {
+    if (!item.serviceId) return;
+    const svc = services.find(s => s.id===parseInt(item.serviceId));
+    const qty = parseInt(item.qty)||1;
+    setBillForm({ ...billForm, items:[...billForm.items, {
+      id:Date.now(), serviceId:svc.id, name:svc.name, rate:svc.rate, qty, desc:item.desc, total:svc.rate*qty
+    }]});
+    setItem({ serviceId:'', qty:1, desc:'' });
+  };
+
+  const createBill = () => {
+    if (!billForm.customerId||billForm.items.length===0)
+      return alert('Select a customer and add at least one item!');
+    const cust = customers.find(c=>c.id===parseInt(billForm.customerId));
+    const tots = calcTotals(billForm.items, billForm.discount);
+    const bill = {
+      id:Date.now(), num:`INV-${Date.now().toString().slice(-6)}`,
+      customer:cust, items:billForm.items, discount:billForm.discount, notes:billForm.notes,
+      ...tots, taxEnabled:tax.enabled, cgstRate:tax.cgst, sgstRate:tax.sgst,
+      date:new Date().toISOString()
+    };
+    updB([bill, ...bills]);
+    setBillForm({ customerId:'', items:[], discount:0, notes:'' });
+    alert('✅ Invoice created successfully!');
+    setTab('history');
+  };
+
+  // ── PDF ─────────────────────────────────────────────────────────────────
+  const downloadPDF = (bill) => {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+    const W = doc.internal.pageSize.getWidth();
+    let y = 0;
+
+    // Dark header bar
+    doc.setFillColor(10, 10, 30);
+    doc.rect(0, 0, W, 40, 'F');
+
+    // Orange accent line
+    doc.setFillColor(249, 115, 22);
+    doc.rect(0, 38, W, 2, 'F');
+
+    // Company name
+    doc.setTextColor(249, 115, 22);
+    doc.setFontSize(18);
+    doc.setFont('helvetica','bold');
+    doc.text('A G', 18, 16);
+    doc.setTextColor(59, 130, 246);
+    doc.text('Electricals & Services', 30, 16);
+
+    doc.setTextColor(200, 200, 200);
+    doc.setFontSize(9);
+    doc.setFont('helvetica','normal');
+    const infoStr = [company.phone && '📞 '+company.phone, company.address, company.gst&&'GST: '+company.gst].filter(Boolean).join('   ');
+    doc.text(infoStr, 18, 23);
+
+    // Invoice info box (top right)
+    doc.setFillColor(30, 30, 60);
+    doc.roundedRect(W-68, 5, 58, 28, 2, 2, 'F');
+    doc.setTextColor(249, 115, 22);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(10);
+    doc.text('INVOICE', W-39, 14, { align:'center' });
+    doc.setTextColor(200, 200, 200);
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(9);
+    doc.text(bill.num, W-39, 21, { align:'center' });
+    doc.text(new Date(bill.date).toLocaleDateString('en-IN'), W-39, 28, { align:'center' });
+
+    y = 48;
+
+    // Bill To box
+    doc.setFillColor(20, 20, 50);
+    doc.setDrawColor(59, 130, 246);
+    doc.setLineWidth(0.5);
+    doc.roundedRect(14, y, W-28, 24, 2, 2, 'FD');
+    doc.setTextColor(249, 115, 22);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(9);
+    doc.text('BILL TO:', 18, y+7);
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(11);
+    doc.text(bill.customer.name, 18, y+14);
+    doc.setFontSize(9);
+    doc.setTextColor(180, 180, 180);
+    const custInfo = [bill.customer.phone, bill.customer.address, bill.customer.gst&&'GST: '+bill.customer.gst].filter(Boolean).join('  |  ');
+    doc.text(custInfo, 18, y+21);
+    y += 30;
+
+    // Items table
+    doc.autoTable({
+      startY: y,
+      head: [['#','Service','Description','Rate (Rs)','Qty','Amount (Rs)']],
+      body: bill.items.map((it,i) => [i+1, it.name, it.desc||'-', it.rate.toFixed(2), it.qty, it.total.toFixed(2)]),
+      styles: { fontSize:9, cellPadding:3, textColor:[220,220,220], fillColor:[20,20,50] },
+      headStyles: { fillColor:[249,115,22], textColor:[255,255,255], fontStyle:'bold' },
+      alternateRowStyles: { fillColor:[25,25,60] },
+      columnStyles: {
+        0:{ cellWidth:8, halign:'center' },
+        3:{ halign:'right' },
+        4:{ cellWidth:10, halign:'center' },
+        5:{ halign:'right', fontStyle:'bold', textColor:[249,115,22] }
+      },
+      margin:{ left:14, right:14 },
+      tableLineColor:[50,50,100], tableLineWidth:0.1
+    });
+    y = doc.lastAutoTable.finalY + 6;
+
+    // Totals
+    const bW=70, bX=W-14-bW;
+    const rows = [];
+    rows.push(['Subtotal:', 'Rs '+bill.sub.toFixed(2)]);
+    if (bill.discount>0) rows.push([`Discount (${billForm.discount||bill.discount}%):`, '- Rs '+bill.disc.toFixed(2)]);
+    if (bill.taxEnabled) {
+      rows.push([`CGST (${bill.cgstRate}%):`, 'Rs '+bill.cgstAmt.toFixed(2)]);
+      rows.push([`SGST (${bill.sgstRate}%):`, 'Rs '+bill.sgstAmt.toFixed(2)]);
+    }
+    doc.setFillColor(20,20,50);
+    doc.setDrawColor(59,130,246);
+    doc.roundedRect(bX, y, bW, rows.length*8+14, 2,2,'FD');
+    let ry = y+8;
+    rows.forEach(([lbl, val]) => {
+      doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(180,180,180);
+      doc.text(lbl, bX+4, ry);
+      doc.text(val, bX+bW-4, ry, { align:'right' });
+      ry+=8;
+    });
+    doc.setFillColor(249,115,22);
+    doc.roundedRect(bX, ry-2, bW, 13, 2,2,'F');
+    doc.setTextColor(255,255,255);
+    doc.setFont('helvetica','bold'); doc.setFontSize(10);
+    doc.text('TOTAL:', bX+4, ry+7);
+    doc.text('Rs '+bill.total.toFixed(2), bX+bW-4, ry+7, { align:'right' });
+    y = ry+18;
+
+    if (bill.notes) {
+      doc.setTextColor(180,180,180); doc.setFont('helvetica','italic'); doc.setFontSize(9);
+      doc.text('Note: '+bill.notes, 14, y);
+      y+=8;
+    }
+
+    // Footer
+    const pH = doc.internal.pageSize.getHeight();
+    doc.setFillColor(10,10,30);
+    doc.rect(0, pH-16, W, 16, 'F');
+    doc.setFillColor(249,115,22);
+    doc.rect(0, pH-16, W, 1.5, 'F');
+    doc.setTextColor(180,180,180);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9);
+    doc.text('Thank you for choosing A G Electricals & Services! | 7353062970', W/2, pH-6, { align:'center' });
+
+    doc.save(`AG-Invoice-${bill.num}.pdf`);
+  };
+
+  const shareBill = async (bill) => {
+    const text = [
+      `⚡ A G Electricals & Services`,
+      `📞 7353062970`,
+      ``,
+      `Invoice No: ${bill.num}`,
+      `Date: ${new Date(bill.date).toLocaleDateString('en-IN')}`,
+      `Customer: ${bill.customer.name} | ${bill.customer.phone}`,
+      ``,
+      ...bill.items.map((i,n) => `${n+1}. ${i.name} × ${i.qty} = Rs ${i.total}`),
+      ``,
+      bill.discount>0 ? `Discount: Rs ${bill.disc.toFixed(2)}` : null,
+      bill.taxEnabled ? `GST: Rs ${(bill.cgstAmt+bill.sgstAmt).toFixed(2)}` : null,
+      `━━━━━━━━━━━━━━━━`,
+      `💰 Total: Rs ${bill.total.toFixed(2)}`,
+    ].filter(Boolean).join('\n');
+    if (navigator.share) {
+      try { await navigator.share({ title:`Invoice ${bill.num}`, text }); } catch(e){}
+    } else {
+      await navigator.clipboard.writeText(text);
+      alert('Bill copied to clipboard!');
+    }
+  };
+
+  const filtered = bills.filter(b =>
+    b.customer.name.toLowerCase().includes(search.toLowerCase()) ||
+    b.num.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // total revenue
+  const revenue = bills.reduce((s,b) => s+b.total, 0);
+
+  // ── UI ──────────────────────────────────────────────────────────────────
+  return (
+    <div className="min-h-screen pb-10" style={{background:'linear-gradient(135deg,#0a0a1a 0%,#0d1b3e 60%,#0a0a1a 100%)'}}>
+      <div className="max-w-4xl mx-auto p-3 sm:p-5">
+
+        {/* ── Header ── */}
+        <div className="rounded-2xl p-4 mb-4 flex items-center justify-between glow-orange"
+             style={{background:'linear-gradient(135deg,#1a1a2e,#0f3460)'}}>
+          <div className="flex items-center gap-3">
+            <AGLogo size={56}/>
+            <div>
+              <div className="font-black text-xl" style={{color:'#f97316'}}>A G
+                <span style={{color:'#60a5fa'}}> Electricals</span>
+              </div>
+              <div className="text-xs" style={{color:'#94a3b8'}}>&amp; Services — Billing Software</div>
+              <div className="text-xs font-bold" style={{color:'#f97316'}}>📞 7353062970</div>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <button onClick={() => setShowSettings(true)}
+              className="p-2 rounded-lg" style={{background:'rgba(255,255,255,0.1)',color:'#94a3b8'}}>
+              <GearIcon/>
+            </button>
+            <div className="text-right">
+              <div className="text-xs" style={{color:'#64748b'}}>Total Revenue</div>
+              <div className="font-bold text-sm" style={{color:'#22c55e'}}>Rs {revenue.toFixed(2)}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Stats bar ── */}
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          {[
+            { label:'Invoices', val:bills.length, color:'#f97316' },
+            { label:'Customers', val:customers.length, color:'#60a5fa' },
+            { label:'Services', val:services.length, color:'#a78bfa' },
+          ].map(({ label, val, color }) => (
+            <div key={label} className="card rounded-xl p-3 text-center">
+              <div className="text-2xl font-black" style={{color}}>{val}</div>
+              <div className="text-xs" style={{color:'#64748b'}}>{label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Tabs ── */}
+        <div className="card rounded-xl p-1.5 mb-4 overflow-x-auto">
+          <div className="flex gap-1.5 min-w-max">
+            {[
+              { id:'billing',   label:'📄 New Invoice' },
+              { id:'history',   label:`🧾 History (${bills.length})` },
+              { id:'customers', label:`👥 Customers` },
+              { id:'services',  label:`⚙️ Services` },
+            ].map(({ id, label }) => (
+              <button key={id} onClick={() => setTab(id)}
+                className="px-4 py-2.5 rounded-lg text-sm font-semibold whitespace-nowrap transition-all"
+                style={tab===id
+                  ? {background:'linear-gradient(135deg,#ea580c,#f97316)',color:'#fff'}
+                  : {background:'rgba(255,255,255,0.05)',color:'#94a3b8'}}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── New Invoice ── */}
+        {tab==='billing' && (
+          <div className="space-y-4">
+            {/* Customer select */}
+            <div className="card rounded-xl p-4">
+              <h2 className="font-bold mb-3" style={{color:'#f97316'}}>👤 Select Customer</h2>
+              <select value={billForm.customerId}
+                onChange={e => setBillForm({...billForm, customerId:e.target.value})}
+                className="w-full px-4 py-3 rounded-lg outline-none mb-3">
+                <option value="">-- Select Customer --</option>
+                {customers.map(c => <option key={c.id} value={c.id}>{c.name} – {c.phone}</option>)}
+              </select>
+              <button onClick={() => setShowCustForm(true)}
+                className="w-full py-3 rounded-lg font-semibold text-white"
+                style={{background:'linear-gradient(135deg,#16a34a,#22c55e)'}}>
+                + Add New Customer
+              </button>
+            </div>
+
+            {/* Service add */}
+            <div className="card rounded-xl p-4">
+              <h2 className="font-bold mb-3" style={{color:'#60a5fa'}}>⚡ Add Service</h2>
+              <div className="space-y-2 mb-3">
+                <select value={item.serviceId}
+                  onChange={e => setItem({...item, serviceId:e.target.value})}
+                  className="w-full px-4 py-3 rounded-lg outline-none">
+                  <option value="">-- Select Service --</option>
+                  {services.map(s => <option key={s.id} value={s.id}>{s.name} – Rs {s.rate}</option>)}
+                </select>
+                <div className="flex gap-2">
+                  <input type="number" placeholder="Qty" min="1" value={item.qty}
+                    onChange={e => setItem({...item, qty:e.target.value})}
+                    className="w-24 px-3 py-3 rounded-lg outline-none"/>
+                  <input type="text" placeholder="Description (optional)" value={item.desc}
+                    onChange={e => setItem({...item, desc:e.target.value})}
+                    className="flex-1 px-3 py-3 rounded-lg outline-none"/>
+                </div>
+                <button onClick={addItem}
+                  className="w-full py-3 rounded-lg font-semibold text-white"
+                  style={{background:'linear-gradient(135deg,#1d4ed8,#3b82f6)'}}>
+                  + Add Item
+                </button>
+              </div>
+
+              {billForm.items.length>0 && (
+                <div className="space-y-2">
+                  {billForm.items.map(it => (
+                    <div key={it.id} className="flex justify-between items-center p-3 rounded-lg"
+                         style={{background:'rgba(59,130,246,0.1)',border:'1px solid rgba(59,130,246,0.2)'}}>
+                      <div>
+                        <div className="font-semibold text-sm text-white">{it.name}</div>
+                        {it.desc && <div className="text-xs" style={{color:'#64748b'}}>{it.desc}</div>}
+                        <div className="text-xs" style={{color:'#94a3b8'}}>Rs {it.rate} × {it.qty}</div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-bold" style={{color:'#f97316'}}>Rs {it.total.toFixed(2)}</span>
+                        <button onClick={() => setBillForm({...billForm, items:billForm.items.filter(i=>i.id!==it.id)})}
+                          style={{color:'#ef4444'}}><Trash2/></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Totals + create */}
+            {billForm.items.length>0 && (
+              <div className="card rounded-xl p-4 space-y-3">
+                <div className="flex justify-between"><span style={{color:'#94a3b8'}}>Subtotal:</span><span className="text-white font-semibold">Rs {t.sub.toFixed(2)}</span></div>
+                <div className="flex justify-between items-center gap-3">
+                  <span style={{color:'#94a3b8'}}>Discount (%):</span>
+                  <input type="number" min="0" max="100" step="0.5" value={billForm.discount}
+                    onChange={e => setBillForm({...billForm, discount:parseFloat(e.target.value)||0})}
+                    className="w-20 px-3 py-2 rounded-lg text-right outline-none"/>
+                  <span style={{color:'#ef4444'}} className="font-semibold">- Rs {t.disc.toFixed(2)}</span>
+                </div>
+                {tax.enabled && <>
+                  <div className="flex justify-between"><span style={{color:'#94a3b8'}}>CGST ({tax.cgst}%):</span><span className="text-white">Rs {t.cgstAmt.toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span style={{color:'#94a3b8'}}>SGST ({tax.sgst}%):</span><span className="text-white">Rs {t.sgstAmt.toFixed(2)}</span></div>
+                </>}
+                <div className="border-t pt-3 flex justify-between items-center" style={{borderColor:'rgba(255,255,255,0.1)'}}>
+                  <span className="text-lg font-bold text-white">TOTAL:</span>
+                  <span className="text-2xl font-black" style={{color:'#f97316'}}>Rs {t.total.toFixed(2)}</span>
+                </div>
+                <textarea rows="2" placeholder="Notes (optional)" value={billForm.notes}
+                  onChange={e => setBillForm({...billForm, notes:e.target.value})}
+                  className="w-full px-4 py-3 rounded-lg outline-none"/>
+                <button onClick={createBill}
+                  className="w-full py-4 rounded-xl font-black text-lg text-white"
+                  style={{background:'linear-gradient(135deg,#ea580c,#f97316)',boxShadow:'0 4px 20px rgba(249,115,22,0.4)'}}>
+                  💰 Generate Invoice
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── History ── */}
+        {tab==='history' && (
+          <div className="card rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg"
+                 style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)'}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              <input type="text" placeholder="Search by name or invoice no..." value={search}
+                onChange={e => setSearch(e.target.value)} className="flex-1 outline-none text-sm"
+                style={{background:'transparent !important',border:'none !important',color:'#fff'}}/>
+            </div>
+            {filtered.length===0
+              ? <p className="text-center py-12" style={{color:'#475569'}}>No invoices found</p>
+              : <div className="space-y-3">
+                  {filtered.map(bill => (
+                    <div key={bill.id} className="rounded-xl p-4"
+                         style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)'}}>
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <div className="font-bold text-sm" style={{color:'#f97316'}}>{bill.num}</div>
+                          <div className="text-xs" style={{color:'#475569'}}>{new Date(bill.date).toLocaleDateString('en-IN')}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xl font-black" style={{color:'#22c55e'}}>Rs {bill.total.toFixed(2)}</div>
+                          {bill.discount>0 && <div className="text-xs" style={{color:'#ef4444'}}>Disc {bill.discount}%</div>}
+                        </div>
+                      </div>
+                      <div className="font-semibold text-white mb-0.5">{bill.customer.name}</div>
+                      <div className="text-xs mb-1" style={{color:'#64748b'}}>📞 {bill.customer.phone} {bill.customer.address&&'| '+bill.customer.address}</div>
+                      <div className="text-xs mb-3" style={{color:'#475569'}}>{bill.items.map(i=>`${i.name}(×${i.qty})`).join(', ')}</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <button onClick={() => downloadPDF(bill)}
+                          className="py-2.5 rounded-lg font-semibold text-sm text-white"
+                          style={{background:'linear-gradient(135deg,#b91c1c,#ef4444)'}}>
+                          📄 PDF
+                        </button>
+                        <button onClick={() => shareBill(bill)}
+                          className="py-2.5 rounded-lg font-semibold text-sm text-white"
+                          style={{background:'linear-gradient(135deg,#15803d,#22c55e)'}}>
+                          📤 Share
+                        </button>
+                        <button onClick={() => { if(confirm('Delete this invoice?')) updB(bills.filter(b=>b.id!==bill.id)); }}
+                          className="py-2.5 rounded-lg font-semibold text-sm"
+                          style={{background:'rgba(255,255,255,0.08)',color:'#94a3b8'}}>
+                          🗑 Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+            }
+          </div>
+        )}
+
+        {/* ── Customers ── */}
+        {tab==='customers' && (
+          <div className="card rounded-xl p-4">
+            <button onClick={() => setShowCustForm(true)}
+              className="w-full py-3 mb-4 rounded-lg font-semibold text-white"
+              style={{background:'linear-gradient(135deg,#16a34a,#22c55e)'}}>
+              + Add New Customer
+            </button>
+            {customers.length===0
+              ? <p className="text-center py-10" style={{color:'#475569'}}>No customers yet</p>
+              : <div className="space-y-3">
+                  {customers.map(c => (
+                    <div key={c.id} className="rounded-xl p-3 relative"
+                         style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)'}}>
+                      <button onClick={() => { if(confirm('Delete?')) updC(customers.filter(x=>x.id!==c.id)); }}
+                        className="absolute top-3 right-3" style={{color:'#ef4444'}}><Trash2/></button>
+                      <div className="font-bold text-white pr-6">{c.name}</div>
+                      <div className="text-sm" style={{color:'#60a5fa'}}>📞 {c.phone}</div>
+                      {c.address && <div className="text-xs" style={{color:'#64748b'}}>📍 {c.address}</div>}
+                      {c.gst     && <div className="text-xs" style={{color:'#64748b'}}>GST: {c.gst}</div>}
+                      <div className="text-xs mt-1" style={{color:'#475569'}}>
+                        {bills.filter(b=>b.customer.id===c.id).length} invoice(s)
+                      </div>
+                    </div>
+                  ))}
+                </div>
+            }
+          </div>
+        )}
+
+        {/* ── Services ── */}
+        {tab==='services' && (
+          <div className="card rounded-xl p-4">
+            <button onClick={() => setShowSvcForm(true)}
+              className="w-full py-3 mb-4 rounded-lg font-semibold text-white"
+              style={{background:'linear-gradient(135deg,#1d4ed8,#3b82f6)'}}>
+              + Add New Service
+            </button>
+            <div className="space-y-3">
+              {services.map(s => (
+                <div key={s.id} className="flex justify-between items-center p-3 rounded-xl"
+                     style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)'}}>
+                  <div>
+                    <div className="font-bold text-white">{s.name}</div>
+                    <div className="text-lg font-black" style={{color:'#f97316'}}>Rs {s.rate}</div>
+                  </div>
+                  <button onClick={() => { if(confirm('Delete service?')) updS(services.filter(x=>x.id!==s.id)); }}
+                    style={{color:'#ef4444'}}><Trash2/></button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Modals ── */}
+        {showCustForm && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{background:'rgba(0,0,0,0.7)'}}>
+            <div className="rounded-xl shadow-2xl w-full max-w-md p-5" style={{background:'#0f172a',border:'1px solid rgba(249,115,22,0.3)'}}>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold" style={{color:'#f97316'}}>👤 New Customer</h3>
+                <button onClick={() => setShowCustForm(false)} style={{color:'#64748b'}}><X/></button>
+              </div>
+              <div className="space-y-3">
+                {[['name','Full Name *','text'],['phone','Phone Number *','tel'],['address','Address','text'],['gst','GST Number','text']].map(([k,ph,tp])=>(
+                  <input key={k} type={tp} placeholder={ph} value={custForm[k]}
+                    onChange={e => setCustForm({...custForm,[k]:e.target.value})}
+                    className="w-full px-4 py-3 rounded-lg outline-none"/>
+                ))}
+                <button onClick={addCust}
+                  className="w-full py-3 rounded-lg font-semibold text-white"
+                  style={{background:'linear-gradient(135deg,#16a34a,#22c55e)'}}>
+                  Save Customer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showSvcForm && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{background:'rgba(0,0,0,0.7)'}}>
+            <div className="rounded-xl shadow-2xl w-full max-w-md p-5" style={{background:'#0f172a',border:'1px solid rgba(59,130,246,0.3)'}}>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold" style={{color:'#60a5fa'}}>⚡ New Service</h3>
+                <button onClick={() => setShowSvcForm(false)} style={{color:'#64748b'}}><X/></button>
+              </div>
+              <div className="space-y-3">
+                <input type="text"   placeholder="Service Name *" value={svcForm.name}
+                  onChange={e => setSvcForm({...svcForm,name:e.target.value})}
+                  className="w-full px-4 py-3 rounded-lg outline-none"/>
+                <input type="number" placeholder="Rate (Rs) *" value={svcForm.rate}
+                  onChange={e => setSvcForm({...svcForm,rate:e.target.value})}
+                  className="w-full px-4 py-3 rounded-lg outline-none"/>
+                <button onClick={addSvc}
+                  className="w-full py-3 rounded-lg font-semibold text-white"
+                  style={{background:'linear-gradient(135deg,#1d4ed8,#3b82f6)'}}>
+                  Save Service
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showSettings && (
+          <div className="fixed inset-0 flex items-start justify-center z-50 p-4 overflow-y-auto" style={{background:'rgba(0,0,0,0.75)'}}>
+            <div className="rounded-xl shadow-2xl w-full max-w-lg p-5 my-8" style={{background:'#0f172a',border:'1px solid rgba(249,115,22,0.3)'}}>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold" style={{color:'#f97316'}}>⚙️ Company Settings</h3>
+                <button onClick={() => setShowSettings(false)} style={{color:'#64748b'}}><X/></button>
+              </div>
+              <div className="space-y-5">
+                <div>
+                  <h4 className="font-semibold mb-2" style={{color:'#60a5fa'}}>Company Information</h4>
+                  <div className="space-y-2">
+                    {[['name','Company Name *','text'],['address','Address','text'],['phone','Phone','tel'],['email','Email','email'],['gst','GST Number','text']].map(([k,ph,tp])=>(
+                      <input key={k} type={tp} placeholder={ph} value={company[k]}
+                        onChange={e => updCo({...company,[k]:e.target.value})}
+                        className="w-full px-4 py-3 rounded-lg outline-none"/>
+                    ))}
+                  </div>
+                </div>
+                <div className="pt-2 border-t" style={{borderColor:'rgba(255,255,255,0.08)'}}>
+                  <h4 className="font-semibold mb-3" style={{color:'#a78bfa'}}>GST / Tax Settings</h4>
+                  <label className="flex items-center gap-3 cursor-pointer mb-3">
+                    <input type="checkbox" checked={tax.enabled}
+                      onChange={e => updT({...tax,enabled:e.target.checked})} className="w-5 h-5"/>
+                    <span className="text-white">Enable GST</span>
+                  </label>
+                  {tax.enabled && (
+                    <div className="grid grid-cols-2 gap-3 pl-4">
+                      {[['cgst','CGST'],['sgst','SGST']].map(([k,lbl])=>(
+                        <div key={k} className="flex items-center gap-2">
+                          <span className="text-sm w-12" style={{color:'#94a3b8'}}>{lbl}</span>
+                          <input type="number" value={tax[k]}
+                            onChange={e => updT({...tax,[k]:parseFloat(e.target.value)||0})}
+                            className="flex-1 px-3 py-2 rounded-lg outline-none"/>
+                          <span className="text-sm" style={{color:'#64748b'}}>%</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button onClick={() => { setShowSettings(false); alert('✅ Settings saved!'); }}
+                  className="w-full py-3 rounded-lg font-semibold text-white"
+                  style={{background:'linear-gradient(135deg,#ea580c,#f97316)'}}>
+                  Save Settings
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
